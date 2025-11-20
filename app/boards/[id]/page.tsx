@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBoard } from "@/lib/hooks/useBoards";
+import { DialogTitle } from "@radix-ui/react-dialog";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -17,13 +18,17 @@ export default function BoardPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newColor, setNewColor] = useState("");
 
-  async function handleUpdateBoard(e:React.FormEvent) {
-    e.preventDefault()
-    if(!newTitle.trim() || !board) return
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  async function handleUpdateBoard(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim() || !board) return;
 
     try {
-      await updateBoard(board.id, {title: newTitle.trim(), color: newColor || board.color})
-      setIsEditingTitle(false)
+      await updateBoard(board.id, {
+        title: newTitle.trim(),
+        color: newColor || board.color,
+      });
+      setIsEditingTitle(false);
     } catch {}
   }
 
@@ -36,6 +41,8 @@ export default function BoardPage() {
           setNewColor(board?.color ?? "");
           setIsEditingTitle(true);
         }}
+        onFilterClick={() => setIsFilterOpen(true)}
+        filterCount={2}
       />
 
       <Dialog open={isEditingTitle} onOpenChange={setIsEditingTitle}>
@@ -70,8 +77,9 @@ export default function BoardPage() {
                   "bg-cyan-500",
                   "bg-emerald-500",
                 ].map((color, key) => (
-                  <button key={key}
-                  type="button"
+                  <button
+                    key={key}
+                    type="button"
                     className={`w-8 h-8 rounded-full ${color} ${
                       color === newColor
                         ? "ring-2 ring-offset-2 ring-gray-900"
@@ -83,10 +91,55 @@ export default function BoardPage() {
               </div>
             </div>
             <div className="flex justify-end space-x-2">
-                <Button type="button" variant={"outline"} onClick={() => setIsEditingTitle(false)}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
+              <Button
+                type="button"
+                variant={"outline"}
+                onClick={() => setIsEditingTitle(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for Filter on Boards */}
+
+      <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Filter Tasks</DialogTitle>
+            <p>Filter tasks by priority, assignee, or due date</p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <div className="flex flex-wrap gap-2">
+                {["low", "medium", "high"].map((priority, key) => (
+                  <Button key={key} variant={"outline"} size={"sm"}
+                    className="border border-gray-200">{priority.charAt(0).toUpperCase() + priority.slice(1)}</Button>
+                ))}
+              </div>
+            </div>
+            {/* <div className="space-y-2">
+              <Label>Assignee</Label>
+              <div className="flex flex-wrap gap-2">
+                {["low", "medium", "high"].map((priority, key) => (
+                  <Button key={key} variant={"outline"} size={"sm"}
+                    className="border border-gray-200">{priority.charAt(0).toUpperCase() + priority.slice(1)}</Button>
+                ))}
+              </div>
+            </div> */}
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Input type="date"/>
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button type="button" variant={"outline"}>Clear Filters</Button>
+              <Button type="button" onClick={() => setIsFilterOpen(false)}>Apply Filters</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
