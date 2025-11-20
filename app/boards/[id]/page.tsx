@@ -12,7 +12,7 @@ import { useState } from "react";
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
-  const { board, updateBoard } = useBoard(id);
+  const { board, updateBoard, columns } = useBoard(id);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -110,15 +110,23 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Filter Tasks</DialogTitle>
-            <p>Filter tasks by priority, assignee, or due date</p>
+            <p className="text-sm text-gray-600">
+              Filter tasks by priority, assignee, or due date
+            </p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Priority</Label>
               <div className="flex flex-wrap gap-2">
                 {["low", "medium", "high"].map((priority, key) => (
-                  <Button key={key} variant={"outline"} size={"sm"}
-                    className="border border-gray-200">{priority.charAt(0).toUpperCase() + priority.slice(1)}</Button>
+                  <Button
+                    key={key}
+                    variant={"outline"}
+                    size={"sm"}
+                    className="border border-gray-200"
+                  >
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  </Button>
                 ))}
               </div>
             </div>
@@ -133,15 +141,33 @@ export default function BoardPage() {
             </div> */}
             <div className="space-y-2">
               <Label>Due Date</Label>
-              <Input type="date"/>
+              <Input type="date" />
             </div>
             <div className="flex justify-between pt-4">
-              <Button type="button" variant={"outline"}>Clear Filters</Button>
-              <Button type="button" onClick={() => setIsFilterOpen(false)}>Apply Filters</Button>
+              <Button type="button" variant={"outline"}>
+                Clear Filters
+              </Button>
+              <Button type="button" onClick={() => setIsFilterOpen(false)}>
+                Apply Filters
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Board Content */}
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        {/* Stat */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Total Tasks:</span>
+              {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
+            </div>
+          </div>
+          
+        </div>
+      </main>
     </div>
   );
 }
