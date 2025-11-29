@@ -1,9 +1,10 @@
 import { useSupabase } from "./../supabase/SupabaseProvider";
 
 import { useUser } from "@clerk/nextjs";
-import { boardDataService, boardService } from "../services";
+import { boardDataService, boardService, taskService } from "../services";
 import { use, useEffect, useState } from "react";
-import { Board, Column } from "../supabase/models";
+import { Board, Column, ColumnWithTasks } from "../supabase/models";
+import { title } from "process";
 
 export function useBoards() {
   const { user } = useUser();
@@ -58,11 +59,11 @@ export function useBoards() {
 export function useBoard(boardId: string) {
   const { supabase } = useSupabase();
   const [board, setBoard] = useState<Board | null>(null);
-  const [columns, setColumns] = useState<Column[]>([]);
+  const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+  useEffect(() => {
     if (boardId) {
       loadBoard();
     }
@@ -74,9 +75,12 @@ export function useBoard(boardId: string) {
     try {
       setLoading(true);
       setError(null);
-      const data = await boardDataService.getBoardWithColumns(supabase!, boardId);
+      const data = await boardDataService.getBoardWithColumns(
+        supabase!,
+        boardId
+      );
       setBoard(data.board);
-      setColumns(data.columns)
+      setColumns(data.columnsWithTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load board");
     } finally {
@@ -84,13 +88,54 @@ export function useBoard(boardId: string) {
     }
   }
   async function updateBoard(boardId: string, updates: Partial<Board>) {
-
     try {
-      const updatedBoard = await boardService.updateBoard(supabase!, boardId, updates);
-      setBoard(updatedBoard)
-      return updatedBoard
+      const updatedBoard = await boardService.updateBoard(
+        supabase!,
+        boardId,
+        updates
+      );
+      setBoard(updatedBoard);
+      return updatedBoard;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update the board");
+      setError(
+        err instanceof Error ? err.message : "Failed to update the board"
+      );
+    }
+  }
+
+  async function createRealTask(
+    columnId: string,
+    taskData: {
+      title: string;
+      description?: string;
+      assignee?: string;
+      dueDate?: string;
+      priority?: "low" | "medium" | "high";
+    }
+  ) {
+    try {
+      const newTask = await taskService.createTask(supabase!, {
+        title: taskData.title,
+        description: taskData.description || null,
+        assignee: taskData.assignee || null,
+        due_date: taskData.dueDate || null,
+        column_id: columnId,
+        sort_order:
+          columns.find((col) => col.id === columnId)?.tasks.length || 0,
+        priority: taskData.priority || "medium",
+      });
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === columnId ? { ...col, tasks: [...col.tasks, newTask] } : col
+        )
+      );
+
+      return newTask;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create the task."
+      );
     }
   }
 
@@ -99,6 +144,7 @@ export function useBoard(boardId: string) {
     columns,
     loading,
     error,
-    updateBoard
-  }
+    updateBoard,
+    createRealTask,
+  };
 }
