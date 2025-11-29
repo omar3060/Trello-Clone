@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Calendar, MoreHorizontal, Plus, User } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { ColumnWithTasks } from "@/lib/supabase/models";
+import { ColumnWithTasks, Task as TaskType } from "@/lib/supabase/models";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
+// Component For Column
 function Column({
   column,
   children,
@@ -52,8 +54,134 @@ function Column({
           </div>
         </div>
         {/* Colmn Contetn */}
-        <div className="p-2">{children}</div>
+        <div className="p-2">{children}
+          {/* Add task dialog */}
+          <Dialog>
+            {/*Habd  */}
+            {/* <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}> */}
+            <DialogTrigger asChild>
+              <Button variant={"ghost"} className="w-full mt-3 text-gray-500 hover:text-gray-700 ">
+                <Plus />
+                Add Task
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+                <p className="text-sm text-gray-600">Add a task to the board</p>
+              </DialogHeader>
+              <form className="space-y-4" onSubmit={onCreateTask}>
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    placeholder="Enter task title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Enter task Description"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="assignee">Assignee</Label>
+                  <Input
+                    id="assignee"
+                    name="assignee"
+                    placeholder="Who should do this?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select name="priority" defaultValue="medium">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["low", "medium", "high"].map((priority, key) => (
+                        <SelectItem key={key} value={priority}>
+                          {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="due-date">Due Date</Label>
+                  <Input type="date" id="dueDate" name="dueDate" />
+                </div>
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="submit">Create Task</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Component For Task
+
+function Task({ task }: { task: TaskType }) {
+  function getPriorityColor(priority: "low" | "high" | "medium"): string {
+    switch (priority) {
+      case "high":
+        return "bg-red-500";
+      case "medium":
+        return "bg-yellow-500";
+      case "low":
+        return "bg-green-500";
+      default:
+        return "bg-yellow-500";
+    }
+  }
+  return (
+    <div>
+      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+        <CardContent className="p-3 sm:p-4">
+          <div className="space-y-2 sm:space-y-3">
+            {/* Task Header */}
+            <div className="flex items-start justify-between">
+              <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
+                {task.title}
+              </h4>
+            </div>
+            {/* Task Description */}
+            <p className="text-xs text-gray-600 line-clamp-2">
+              {task.description || "No description."}
+            </p>
+            {/* Task Meta */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
+                {task.assignee && (
+                  <div className="flex items-center space-x-1 text-xs text-gray-500">
+                    <User className="h-3 w-3" />{" "}
+                    <span className="truncate">{task.assignee}</span>
+                  </div>
+                )}
+                {task.due_date && (
+                  <div className="flex items-center space-x-1 text-xs text-gray-500">
+                    <Calendar className="h-3 w-3" />
+                    <span className="truncate">{task.due_date}</span>
+                  </div>
+                )}
+              </div>
+              <div
+                className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(
+                  task.priority
+                )}`}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -68,7 +196,7 @@ export default function BoardPage() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   // habd
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
+  // const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   async function handleUpdateBoard(e: React.FormEvent) {
     e.preventDefault();
     if (!newTitle.trim() || !board) return;
@@ -82,44 +210,41 @@ export default function BoardPage() {
     } catch {}
   }
 
-  async function createTask(taskData:{
+  async function createTask(taskData: {
     title: string;
     description?: string;
     assignee?: string;
-    dueData?: string;
-    priority: "low" | "medium" | "high"
+    dueDate?: string;
+    priority: "low" | "medium" | "high";
   }) {
-      const targetColumn = columns[0]
-      if (!targetColumn) {
-        throw new Error("No column available to add task")
-      }
+    const targetColumn = columns[0];
+    if (!targetColumn) {
+      throw new Error("No column available to add task");
+    }
 
-      await createRealTask(targetColumn.id, taskData)
+    await createRealTask(targetColumn.id, taskData);
   }
 
   async function handleCreateTask(e: any) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     const taskData = {
       title: formData.get("title") as string,
-      description: (formData.get("description") as string)  || undefined,
-      assignee: (formData.get("assignee") as string)  || undefined,
+      description: (formData.get("description") as string) || undefined,
+      assignee: (formData.get("assignee") as string) || undefined,
       dueDate: (formData.get("dueDate") as string) || undefined,
-      priority: (formData.get("priority") as 'low' | 'medium' | 'high') || "medium",
-    }
+      priority:
+        (formData.get("priority") as "low" | "medium" | "high") || "medium",
+    };
 
     if (taskData.title.trim()) {
-      await createTask(taskData)
+      await createTask(taskData);
 
-      // sa7
-      // const trigger = document.querySelector('[data-state="open"]') as HTMLElement;
-      // if (trigger) {
-      //   trigger.click()
-      // }
-    } 
-    
-    // habd
-    setIsAddTaskOpen(false)
+      const trigger = document.querySelector(
+        '[data-state="open"'
+      ) as HTMLElement;
+      if (trigger) trigger.click();
+    }
   }
 
   return (
@@ -257,9 +382,9 @@ export default function BoardPage() {
           </div>
 
           {/* Add task dialog */}
-          {/* <Dialog> */}
-          {/*Habd  */}
-          <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+          <Dialog>
+            {/*Habd  */}
+            {/* <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}> */}
             <DialogTrigger>
               <Button className="w-full sm:w-auto">
                 <Plus />
@@ -284,7 +409,7 @@ export default function BoardPage() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    name="Description"
+                    name="description"
                     placeholder="Enter task Description"
                     rows={3}
                   />
@@ -293,7 +418,7 @@ export default function BoardPage() {
                   <Label htmlFor="assignee">Assignee</Label>
                   <Input
                     id="assignee"
-                    name="Assignee"
+                    name="assignee"
                     placeholder="Who should do this?"
                   />
                 </div>
@@ -325,17 +450,22 @@ export default function BoardPage() {
         </div>
 
         {/* Board Columns */}
-        <div>
+        <div
+          className="flex flex-col lg:flex-row lg:space-x-6 lg:overflow-x-auto 
+            lg:pb-6 lg:px-2 lg:-mx-2 
+            lg:custom-scrollbar
+            space-y-4 lg:space-y-0"
+        >
           {columns.map((column, key) => (
             <Column
               key={key}
               column={column}
-              onCreateTask={() => {}}
+              onCreateTask={handleCreateTask}
               onEditColumn={() => {}}
             >
-              <div>
+              <div className="space-y-3">
                 {column.tasks.map((task, key) => (
-                  <div key={key}>{task.title}</div>
+                  <Task task={task} key={key} />
                 ))}
               </div>
             </Column>

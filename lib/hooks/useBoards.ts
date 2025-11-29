@@ -119,10 +119,10 @@ export function useBoard(boardId: string) {
         description: taskData.description || null,
         assignee: taskData.assignee || null,
         due_date: taskData.dueDate || null,
-        priority: taskData.priority || "medium",
         column_id: columnId,
         sort_order:
           columns.find((col) => col.id === columnId)?.tasks.length || 0,
+        priority: taskData.priority || "medium",
       });
 
       setColumns((prev) =>
@@ -131,9 +131,11 @@ export function useBoard(boardId: string) {
         )
       );
 
-      return newTask
+      return newTask;
     } catch (err) {
-      setError(err instanceof Error? err.message : "Failed to create the task")
+      setError(
+        err instanceof Error ? err.message : "Failed to create the task."
+      );
     }
   }
 
