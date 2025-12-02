@@ -352,7 +352,9 @@ export default function BoardPage() {
       setActiveTask(task);
     }
   }
-  function handleDragOver(event: DragOverEvent) {}
+  function handleDragOver(event: DragOverEvent) {
+    
+  }
   function handleDragEnd(event: DragEndEvent) {}
 
   return (
