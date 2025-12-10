@@ -27,8 +27,11 @@ import {
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  PointerSensor,
   rectIntersection,
   useDroppable,
+  useSensor,
+  useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -288,6 +291,15 @@ export default function BoardPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(useSensor(
+    PointerSensor, {
+      activationConstraint: {
+        distance: 8
+      }
+    }
+  ))
+
   // habd
   // const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   async function handleUpdateBoard(e: React.FormEvent) {
@@ -599,7 +611,7 @@ function handleDragOver(event: DragOverEvent) {
         {/* Board Columns */}
 
         <DndContext
-          // sensors={}
+          sensors={sensors}
           collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
