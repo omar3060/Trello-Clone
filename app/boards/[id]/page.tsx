@@ -349,6 +349,7 @@ export default function BoardPage() {
       setActiveTask(task);
     }
   }
+  // handle drag over
 function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
