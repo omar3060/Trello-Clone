@@ -48,8 +48,8 @@ export const boardService = {
   ): Promise<Board> {
     const { data, error } = await supabase
       .from("boards")
-      .update({...updates, updated_at: new Date().toISOString()})
-      .eq("id",boardId)
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", boardId)
       .select()
       .single();
 
@@ -57,9 +57,6 @@ export const boardService = {
     return data;
   },
 };
-
-
-  
 
 export const columnService = {
   async getColumns(
@@ -111,7 +108,7 @@ export const taskService = {
     return data || [];
   },
 
-    async createTask(
+  async createTask(
     supabase: SupabaseClient,
     task: Omit<Task, "id" | "created_at" | "updated_at">
   ): Promise<Task> {
@@ -124,8 +121,42 @@ export const taskService = {
     if (error) throw error;
     return data;
   },
-};
 
+  // async moveTask(
+  //   supabase: SupabaseClient,
+  //   taskId: string,
+  //   newColumnId: string,
+  //   newOrder: number
+  // ) {
+  //   const { data, error } = await supabase
+  //     .from("tasks")
+  //     .update({ column_id: newColumnId, sort_order: newOrder })
+  //     .eq("id", taskId);
+
+  //   if (error) throw error;
+  //   return data;
+  // },
+
+  async moveTask(
+    supabase: SupabaseClient,
+    taskId: string,
+    newColumnId: string,
+    newOrder: number
+  ): Promise<Task> {
+    const { data, error } = await supabase
+      .from("tasks")
+      .update({
+        column_id: newColumnId,
+        sort_order: newOrder,
+      })
+      .eq("id", taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+};
 
 export const boardDataService = {
   async getBoardWithColumns(supabase: SupabaseClient, boardId: string) {
@@ -136,12 +167,12 @@ export const boardDataService = {
 
     if (!board) throw new Error("Board not found");
 
-    const tasks = await taskService.getTasksByBoard(supabase, boardId)
+    const tasks = await taskService.getTasksByBoard(supabase, boardId);
 
     const columnsWithTasks = columns.map((column) => ({
       ...column,
-      tasks: tasks.filter((task) => task.column_id === column.id)
-    }))
+      tasks: tasks.filter((task) => task.column_id === column.id),
+    }));
 
     return {
       board,

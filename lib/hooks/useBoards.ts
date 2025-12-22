@@ -1,10 +1,11 @@
 import { useSupabase } from "./../supabase/SupabaseProvider";
 
 import { useUser } from "@clerk/nextjs";
-import { boardDataService, boardService, taskService } from "../services";
+import { boardDataService, boardService, columnService, taskService } from "../services";
 import { use, useEffect, useState } from "react";
-import { Board, Column, ColumnWithTasks } from "../supabase/models";
+import { Board, Column, ColumnWithTasks, Task } from "../supabase/models";
 import { title } from "process";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 export function useBoards() {
   const { user } = useUser();
@@ -58,6 +59,7 @@ export function useBoards() {
 
 export function useBoard(boardId: string) {
   const { supabase } = useSupabase();
+  const { user } = useUser();
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +115,11 @@ export function useBoard(boardId: string) {
       priority?: "low" | "medium" | "high";
     }
   ) {
+    if (!user) {
+      setError("User not authenticated");
+      return;
+    }
+
     try {
       const newTask = await taskService.createTask(supabase!, {
         title: taskData.title,
@@ -139,6 +146,97 @@ export function useBoard(boardId: string) {
     }
   }
 
+  // async function moveTask(taskId:string, newColumnId: string, newOrder: number) {
+  //   try {
+  //     await taskService.moveTask(supabase!, taskId, newColumnId, newOrder)
+
+  //     setColumns((prev) => {
+  //       const newColumns = [...prev]
+
+  //       // find and remove task from the old column
+
+  //       let taskToMove: Task | null = null
+  //       for (const col of newColumns) {
+  //         const taskIndex = col.tasks.findIndex(task => task.id === taskId)
+  //         if (taskIndex !== -1) {
+  //           taskToMove = col.tasks[taskIndex]
+  //           col.tasks.splice(taskIndex, 1)
+  //           break;
+  //         }
+  //       }
+
+  //       if (taskToMove) {
+  //         // add task to new column
+
+  //         const targetColumn = newColumns.find(col => col.id === newColumnId)
+
+  //         if(targetColumn) {
+  //           targetColumn.tasks.splice(newOrder, 0, taskToMove)
+  //         }
+  //       }
+  //       return newColumns
+  //     })
+  //   } catch (err) {
+  //     setError(
+  //       err instanceof Error ? err.message : "Failed to move task."
+  //     );
+  //   }
+  // }
+
+  async function moveTask(
+    taskId: string,
+    newColumnId: string,
+    newOrder: number
+  ) {
+    try {
+      await taskService.moveTask(supabase!, taskId, newColumnId, newOrder);
+
+      setColumns((prev) => {
+        const newColumns = [...prev];
+
+        // find and remove task from the old column
+        let taskToMove: Task | null = null;
+        for (const col of newColumns) {
+          const taskIndex = col.tasks.findIndex((task) => task.id === taskId);
+          if (taskIndex !== -1) {
+            taskToMove = col.tasks[taskIndex];
+            col.tasks.splice(taskIndex, 1);
+            break;
+          }
+        }
+
+        if (taskToMove) {
+          // add task to the new column
+          const targetColumn = newColumns.find((col) => col.id === newColumnId);
+          if (targetColumn) {
+            targetColumn.tasks.splice(newOrder, 0, taskToMove);
+          }
+        }
+
+        return newColumns;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to move the task.");
+    }
+  }
+
+  async function createColumn(title:string) {
+    if (!board || !user) return new Error("There is no board")
+
+    try {
+      const newColumn = await columnService.createColumn(supabase!, {
+        title,
+        board_id: board.id,
+        sort_order: columns.length,
+        user_id: user.id
+      })
+
+      setColumns(prev => [...prev, {...newColumn, tasks: []}])
+      return newColumn
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create column.")
+    }
+  }
   return {
     board,
     columns,
@@ -146,6 +244,8 @@ export function useBoard(boardId: string) {
     error,
     updateBoard,
     createRealTask,
-    setColumns
+    setColumns,
+    moveTask,
+    createColumn
   };
 }
