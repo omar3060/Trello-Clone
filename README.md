@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📋 Trello Clone
 
-## Getting Started
+A modern, full-stack Kanban board application built with **Next.js 14**, **Supabase**, and **Clerk**. Featuring drag-and-drop task management, real-time updates, and a beautiful responsive UI.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green?logo=supabase)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC?logo=tailwind-css)
+
+## ✨ Features
+
+- 🔐 **Authentication** - Secure user auth with Clerk
+- 📋 **Multiple Boards** - Create and manage multiple project boards
+- 📝 **Task Management** - Create, edit, delete tasks with rich details
+- 🎯 **Drag & Drop** - Intuitive drag-and-drop interface with dnd-kit
+- 🏷️ **Priority Levels** - Low, Medium, High priority indicators
+- 👤 **Assignees** - Assign tasks to team members
+- 📅 **Due Dates** - Track deadlines
+- 📱 **Responsive** - Works on desktop and mobile
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Supabase account
+- Clerk account
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/trello-clone.git
+cd trello-clone
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your keys
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-## Learn More
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_key
+CLERK_SECRET_KEY=your_clerk_secret
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 📁 Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+├── app/                    # Next.js App Router
+│   ├── boards/[id]/       # Individual board pages
+│   └── dashboard/         # Dashboard with all boards
+├── components/            # Reusable UI components
+├── lib/
+│   ├── services.ts       # Database operations
+│   ├── hooks/            # Custom React hooks
+│   └── supabase/         # Supabase config & types
+└── public/               # Static assets
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🏗️ Architecture
 
-## Deploy on Vercel
+```
+UI (Components) → Hooks (State Management) → Services (Database) → Supabase
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📖 Documentation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For detailed documentation including:
+
+- Complete project setup
+- Database schema
+- How to add new features
+- Code examples
+
+See [DOCUMENTATION.md](./DOCUMENTATION.md)
+
+## 🛠️ Tech Stack
+
+| Technology   | Purpose             |
+| ------------ | ------------------- |
+| Next.js 14   | React framework     |
+| TypeScript   | Type safety         |
+| Supabase     | Database & Auth     |
+| Clerk        | User authentication |
+| Tailwind CSS | Styling             |
+| shadcn/ui    | UI components       |
+| dnd-kit      | Drag and drop       |
+
+## 📝 License
+
+MIT License - feel free to use this project for learning!
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read the documentation first.
+
+---
+
+⭐ Star this repo if you find it helpful!

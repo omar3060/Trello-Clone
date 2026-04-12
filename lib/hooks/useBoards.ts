@@ -1,9 +1,21 @@
 import { useSupabase } from "./../supabase/SupabaseProvider";
 
 import { useUser } from "@clerk/nextjs";
-import { boardDataService, boardService, columnService, taskService } from "../services";
+import {
+  boardDataService,
+  boardService,
+  columnService,
+  taskService,
+  commentService,
+} from "../services";
 import { use, useEffect, useState } from "react";
-import { Board, Column, ColumnWithTasks, Task } from "../supabase/models";
+import {
+  Board,
+  Column,
+  ColumnWithTasks,
+  Task,
+  Comment,
+} from "../supabase/models";
 import { title } from "process";
 import { SupabaseClient } from "@supabase/supabase-js";
 
@@ -46,7 +58,7 @@ export function useBoards() {
         {
           ...boardData,
           userId: user.id,
-        }
+        },
       );
       setBoards((prev) => [newBoard, ...prev]);
     } catch (err) {
@@ -54,7 +66,16 @@ export function useBoards() {
     }
   }
 
-  return { boards, loading, error, createBoard };
+  async function deleteBoard(boardId: string) {
+    try {
+      await boardService.deleteBoard(supabase!, boardId);
+      setBoards((prev) => prev.filter((b) => b.id !== boardId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete board");
+    }
+  }
+
+  return { boards, loading, error, createBoard, deleteBoard };
 }
 
 export function useBoard(boardId: string) {
@@ -79,7 +100,7 @@ export function useBoard(boardId: string) {
       setError(null);
       const data = await boardDataService.getBoardWithColumns(
         supabase!,
-        boardId
+        boardId,
       );
       setBoard(data.board);
       setColumns(data.columnsWithTasks);
@@ -94,13 +115,13 @@ export function useBoard(boardId: string) {
       const updatedBoard = await boardService.updateBoard(
         supabase!,
         boardId,
-        updates
+        updates,
       );
       setBoard(updatedBoard);
       return updatedBoard;
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to update the board"
+        err instanceof Error ? err.message : "Failed to update the board",
       );
     }
   }
@@ -113,7 +134,7 @@ export function useBoard(boardId: string) {
       assignee?: string;
       dueDate?: string;
       priority?: "low" | "medium" | "high";
-    }
+    },
   ) {
     if (!user) {
       setError("User not authenticated");
@@ -134,14 +155,16 @@ export function useBoard(boardId: string) {
 
       setColumns((prev) =>
         prev.map((col) =>
-          col.id === columnId ? { ...col, tasks: [...col.tasks, newTask] } : col
-        )
+          col.id === columnId
+            ? { ...col, tasks: [...col.tasks, newTask] }
+            : col,
+        ),
       );
 
       return newTask;
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to create the task."
+        err instanceof Error ? err.message : "Failed to create the task.",
       );
     }
   }
@@ -186,7 +209,7 @@ export function useBoard(boardId: string) {
   async function moveTask(
     taskId: string,
     newColumnId: string,
-    newOrder: number
+    newOrder: number,
   ) {
     try {
       await taskService.moveTask(supabase!, taskId, newColumnId, newOrder);
@@ -220,23 +243,165 @@ export function useBoard(boardId: string) {
     }
   }
 
-  async function createColumn(title:string) {
-    if (!board || !user) return new Error("There is no board")
+  async function createColumn(title: string) {
+    if (!board || !user) return new Error("There is no board");
 
     try {
       const newColumn = await columnService.createColumn(supabase!, {
         title,
         board_id: board.id,
         sort_order: columns.length,
-        user_id: user.id
-      })
+        user_id: user.id,
+      });
 
-      setColumns(prev => [...prev, {...newColumn, tasks: []}])
-      return newColumn
+      setColumns((prev) => [...prev, { ...newColumn, tasks: [] }]);
+      return newColumn;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create column.")
+      setError(err instanceof Error ? err.message : "Failed to create column.");
     }
   }
+  async function updateColumn(columnId: string, title: string) {
+    if (!board || !user) return new Error("There is no board");
+
+    try {
+      const updatedColumn = await columnService.updateColumnTitle(
+        supabase!,
+        columnId,
+        title,
+      );
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === columnId ? { ...col, ...updateColumn } : col,
+        ),
+      );
+      return updatedColumn;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create column.");
+    }
+  }
+
+  async function deleteColumn(columnId: string) {
+    if (!board || !user) return;
+
+    try {
+      await columnService.deleteColumn(supabase!, columnId);
+      setColumns((prev) => prev.filter((col) => col.id !== columnId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete column.");
+    }
+  }
+
+  // Update task by ID and sync state after database save
+  async function updateTask(
+    taskId: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      assignee?: string | null;
+      due_date?: string | null;
+      priority?: "low" | "medium" | "high";
+    },
+  ) {
+    if (!user) {
+      setError("User not authenticated");
+      return;
+    }
+
+    try {
+      // 1. Update in database
+      const updatedTask = await taskService.updateTask(
+        supabase!,
+        taskId,
+        updates,
+      );
+
+      // 2. Update local state - find task across all columns
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          tasks: col.tasks.map((task) =>
+            task.id === taskId ? { ...task, ...updatedTask } : task,
+          ),
+        })),
+      );
+
+      return updatedTask;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update task.");
+    }
+  }
+
+  // ==========================================
+  // Comment Functions
+  // ==========================================
+
+  // Get comments for a specific task
+  async function getComments(taskId: string): Promise<Comment[]> {
+    try {
+      const comments = await commentService.getCommentsByTask(
+        supabase!,
+        taskId,
+      );
+      return comments;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load comments.");
+      return [];
+    }
+  }
+
+  // Add a new comment
+  async function addComment(
+    taskId: string,
+    content: string,
+  ): Promise<Comment | null> {
+    if (!user) {
+      setError("User not authenticated");
+      return null;
+    }
+
+    try {
+      const newComment = await commentService.createComment(supabase!, {
+        task_id: taskId,
+        content: content,
+        user_id: user.id,
+        user_name: user.fullName || user.username || "Anonymous",
+      });
+
+      return newComment;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add comment.");
+      return null;
+    }
+  }
+
+  // Delete a comment
+  async function deleteComment(commentId: string): Promise<boolean> {
+    try {
+      await commentService.deleteComment(supabase!, commentId);
+      return true;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to delete comment.",
+      );
+      return false;
+    }
+  }
+
+  async function deleteTask(taskId: string) {
+    try {
+      await taskService.deleteTask(supabase!, taskId);
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          tasks: col.tasks.filter((t) => t.id !== taskId),
+        })),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete task.");
+    }
+  }
+
   return {
     board,
     columns,
@@ -246,6 +411,14 @@ export function useBoard(boardId: string) {
     createRealTask,
     setColumns,
     moveTask,
-    createColumn
+    createColumn,
+    updateColumn,
+    deleteColumn,
+    updateTask,
+    deleteTask,
+    // Comment functions
+    getComments,
+    addComment,
+    deleteComment,
   };
 }

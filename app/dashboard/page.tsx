@@ -2,8 +2,32 @@
 import Navbar from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useBoards } from "@/lib/hooks/useBoards";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -14,6 +38,7 @@ import {
   Plus,
   Rocket,
   Search,
+  Trash2,
   Trello,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,8 +46,47 @@ import { useState } from "react";
 // https://rapid-bulldog-67.clerk.accounts.dev
 export default function DashboardPage() {
   const { user } = useUser();
-  const { createBoard, boards, loading, error } = useBoards();
+  const { createBoard, boards, loading, error, deleteBoard } = useBoards();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterColor, setFilterColor] = useState<string | null>(null);
+  const [filterDateRange, setFilterDateRange] = useState<
+    "all" | "week" | "month"
+  >("all");
+
+  const filteredBoards = boards.filter((board) => {
+    // search filter
+    const matchesSearch =
+      board.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (board.description &&
+        board.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (!matchesSearch) return false;
+
+    // color filter
+    if (filterColor && board.color !== filterColor) return false;
+
+    // date range filter
+    if (filterDateRange !== "all") {
+      const updatedAt = new Date(board.updated_at);
+      const now = new Date();
+      if (filterDateRange === "week") {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        if (updatedAt < oneWeekAgo) return false;
+      } else if (filterDateRange === "month") {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(now.getMonth() - 1);
+        if (updatedAt < oneMonthAgo) return false;
+      }
+    }
+
+    return true;
+  });
+
+  const activeFilterCount =
+    (filterColor ? 1 : 0) + (filterDateRange !== "all" ? 1 : 0);
+
   const handleCreateBoard = async () => {
     await createBoard({ title: "New Board" });
   };
@@ -163,9 +227,24 @@ export default function DashboardPage() {
                   <List />
                 </Button>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFilterOpen(true)}
+                className={
+                  activeFilterCount > 0 ? "bg-blue-100 border-blue-200" : ""
+                }
+              >
                 <Filter />
                 Filter
+                {activeFilterCount > 0 && (
+                  <Badge
+                    className="text-xs ml-1 bg-blue-100 border-blue-200"
+                    variant="secondary"
+                  >
+                    {activeFilterCount}
+                  </Badge>
+                )}
               </Button>
               <Button onClick={handleCreateBoard}>
                 <Plus /> Create Board
@@ -179,91 +258,262 @@ export default function DashboardPage() {
               id="search"
               placeholder="Search Boards..."
               className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
           {/* Boards Grid/List */}
-          {boards.length === 0 ? (
+          {filteredBoards.length === 0 ? (
             <div>No Boards yet</div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {
-                boards.map((board, key) => (
-                  <Link href={`/boards/${board.id}`} key={key}>
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className={`w-4 h-4 ${board.color} rounded`}/>
-                          <Badge className="text-xs" variant={`secondary`}>New</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-4 sm:p-6">
-                        <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">{board.title}</CardTitle>
-                        <CardDescription className="text-sm mb-4">{board.description}</CardDescription>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0">
-                          <span>
-                            Created {" "}
-                            {new Date(board.created_at).toLocaleDateString()}
-                          </span>
-                          <span>
-                            Updated {" "}
-                            {new Date(board.updated_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
+              {filteredBoards.map((board, key) => (
+                <Card
+                  key={key}
+                  className="hover:shadow-lg transition-shadow cursor-pointer group relative"
+                >
+                  <div className="absolute top-2 right-2 z-10">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Board</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{board.title}
+                            &quot;? All columns and tasks in this board will be
+                            permanently deleted. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={() => deleteBoard(board.id)}
+                          >
+                            Delete Board
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                  <Link href={`/boards/${board.id}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-4 h-4 ${board.color} rounded`} />
+                        <Badge className="text-xs mr-4" variant={`secondary`}>
+                          New
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">
+                        {board.title}
+                      </CardTitle>
+                      <CardDescription className="text-sm mb-4">
+                        {board.description}
+                      </CardDescription>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0">
+                        <span>
+                          Created{" "}
+                          {new Date(board.created_at).toLocaleDateString()}
+                        </span>
+                        <span>
+                          Updated{" "}
+                          {new Date(board.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </CardContent>
                   </Link>
-                ))
-              }
-              <Card onClick={handleCreateBoard} className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group">
+                </Card>
+              ))}
+              <Card
+                onClick={handleCreateBoard}
+                className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group"
+              >
                 <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[150px]">
-                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2"/>
-                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">Create New Board</p>
+                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
+                    Create New Board
+                  </p>
                 </CardContent>
               </Card>
             </div>
           ) : (
             <div>
-              {
-                boards.map((board, key) => (
-                  <div key={key} className={key > 0 ? "mt-4" : ""}>
-                    <Link href={`/boards/${board.id}`} >
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+              {filteredBoards.map((board, key) => (
+                <div key={key} className={key > 0 ? "mt-4" : ""}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer group relative">
+                    <div className="absolute top-2 right-2 z-10">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Board</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete &quot;
+                              {board.title}&quot;? All columns and tasks in this
+                              board will be permanently deleted. This action
+                              cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700"
+                              onClick={() => deleteBoard(board.id)}
+                            >
+                              Delete Board
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    <Link href={`/boards/${board.id}`}>
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                          <div className={`w-4 h-4 ${board.color} rounded`}/>
-                          <Badge className="text-xs" variant={`secondary`}>New</Badge>
+                          <div className={`w-4 h-4 ${board.color} rounded`} />
+                          <Badge className="text-xs" variant={`secondary`}>
+                            New
+                          </Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="p-4 sm:p-6">
-                        <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">{board.title}</CardTitle>
-                        <CardDescription className="text-sm mb-4">{board.description}</CardDescription>
+                        <CardTitle className="text-base sm:text-lg mb-2 group-hover:text-blue-600 transition-colors">
+                          {board.title}
+                        </CardTitle>
+                        <CardDescription className="text-sm mb-4">
+                          {board.description}
+                        </CardDescription>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-gray-500 space-y-1 sm:space-y-0">
                           <span>
-                            Created {" "}
+                            Created{" "}
                             {new Date(board.created_at).toLocaleDateString()}
                           </span>
                           <span>
-                            Updated {" "}
+                            Updated{" "}
                             {new Date(board.updated_at).toLocaleDateString()}
                           </span>
                         </div>
                       </CardContent>
-                    </Card>
-                  </Link>
-                  </div>
-                ))
-              }
-              <Card onClick={handleCreateBoard} className="mt-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group">
+                    </Link>
+                  </Card>
+                </div>
+              ))}
+              <Card
+                onClick={handleCreateBoard}
+                className="mt-4 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer group"
+              >
                 <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center h-full min-h-[150px]">
-                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2"/>
-                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">Create New Board</p>
+                  <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 group-hover:text-blue-600 mb-2" />
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-blue-600 font-medium">
+                    Create New Board
+                  </p>
                 </CardContent>
               </Card>
             </div>
           )}
         </div>
       </main>
+
+      {/* Filter Dialog */}
+      <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+          <DialogHeader>
+            <DialogTitle>Filter Boards</DialogTitle>
+            <p className="text-sm text-gray-600">
+              Filter boards by color or activity
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Board Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "bg-blue-500", label: "Blue" },
+                  { value: "bg-green-500", label: "Green" },
+                  { value: "bg-yellow-500", label: "Yellow" },
+                  { value: "bg-red-500", label: "Red" },
+                  { value: "bg-purple-500", label: "Purple" },
+                  { value: "bg-pink-500", label: "Pink" },
+                ].map((color, key) => (
+                  <Button
+                    key={key}
+                    variant={
+                      filterColor === color.value ? "default" : "outline"
+                    }
+                    size="sm"
+                    className="border border-gray-200"
+                    onClick={() =>
+                      setFilterColor(
+                        filterColor === color.value ? null : color.value,
+                      )
+                    }
+                  >
+                    <div
+                      className={`w-3 h-3 rounded-full ${color.value} mr-1`}
+                    />
+                    {color.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Activity</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all" as const, label: "All Time" },
+                  { value: "week" as const, label: "Last Week" },
+                  { value: "month" as const, label: "Last Month" },
+                ].map((range, key) => (
+                  <Button
+                    key={key}
+                    variant={
+                      filterDateRange === range.value ? "default" : "outline"
+                    }
+                    size="sm"
+                    className="border border-gray-200"
+                    onClick={() => setFilterDateRange(range.value)}
+                  >
+                    {range.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setFilterColor(null);
+                  setFilterDateRange("all");
+                }}
+              >
+                Clear Filters
+              </Button>
+              <Button type="button" onClick={() => setIsFilterOpen(false)}>
+                Apply Filters
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
