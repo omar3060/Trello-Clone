@@ -33,7 +33,6 @@
 //   created_at: string;
 // }
 
-
 export interface Board {
   id: string;
   title: string;
@@ -68,3 +67,18 @@ export interface Task {
   sort_order: number;
   created_at: string;
 }
+
+// Comment interface - for task comments
+export interface Comment {
+  id: string;
+  content: string; // comment content
+  task_id: string; // ID of the task this comment belongs to
+  user_id: string; // ID of the user who wrote the comment
+  user_name: string | null; // user display name
+  created_at: string; // creation timestamp
+}
+
+// Task with comments
+export type TaskWithComments = Task & {
+  comments: Comment[];
+};

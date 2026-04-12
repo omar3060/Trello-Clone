@@ -50,7 +50,6 @@
 //   return context
 // }
 
-
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -67,30 +66,34 @@ const Context = createContext<SupabaseContext>({
   isLoaded: false,
 });
 
-export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
+export default function SupabaseProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { session, isLoaded: isClerkLoaded } = useSession();
 
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
   useEffect(() => {
-    // لو Clerk لسه محمّلش → استنى
+    // Wait for Clerk to load
     if (!isClerkLoaded) return;
 
-    // لو مفيش session → يبقى اليوزر مش مسجّل دخول
+    // No session means user is not logged in
     if (!session) {
       setSupabase(null);
-      setIsLoaded(true);  // لازم تبقى true علشان Loading يختفي
+      setIsLoaded(true); // Must be true to hide Loading
       return;
     }
 
-    // لو في session → اعمل Supabase client
+    // If session exists, create Supabase client
     const client = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         accessToken: async () => session?.getToken() ?? null,
-      }
+      },
     );
 
     setSupabase(client);
